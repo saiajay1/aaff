@@ -90,6 +90,8 @@ def health_check():
     )
 
     try:
+        # Debug print: Check if API Key is detected before the call
+        print(f"DEBUG_HS_AI: Attempting Gemini call for Health Check. API Key set: {bool(os.getenv('GEMINI_API_KEY'))}")
         # Make the call to the Gemini AI model
         response = model.generate_content(prompt)
         ai_summary = response.text
@@ -99,7 +101,7 @@ def health_check():
             "data_used": property_data # Include this for transparency in hackathon demo
         })
     except Exception as e:
-        print(f"Error generating AI content: {e}")
+        print(f"Error generating AI content: {e}") # This print goes to stderr/stdout
         return jsonify({"error": "Could not generate AI summary. Please try again."}), 500
 
 @app.route('/ask_ai', methods=['POST'])
@@ -124,13 +126,61 @@ def ask_ai():
     )
 
     try:
+        # Debug print: Check if API Key is detected before the call
+        print(f"DEBUG_HS_AI: Attempting Gemini call for Q&A. API Key set: {bool(os.getenv('GEMINI_API_KEY'))}")
         # Make the call to the Gemini AI model
         response = model.generate_content(prompt)
         ai_answer = response.text
         return jsonify({"question": question, "answer": ai_answer})
     except Exception as e:
-        print(f"Error generating AI answer: {e}")
+        print(f"Error generating AI answer: {e}") # This print goes to stderr/stdout
         return jsonify({"error": "Could not get AI answer. Please try again."}), 500
+
+@app.route('/get_valuation', methods=['POST'])
+def get_valuation():
+    """
+    Generates a simulated property valuation estimate using AI.
+    """
+    data = request.json
+    address = data.get('address')
+    prop_type = data.get('type')
+    beds = data.get('beds')
+    condition = data.get('condition')
+
+    if not all([address, prop_type, beds, condition]):
+        return jsonify({"error": "Missing valuation details"}), 400
+
+    prompt = (
+        f"You are HomeSense AI, an expert UK property valuer. Based on the following simulated details, "
+        f"provide a highly realistic property valuation estimate (e.g., '£XYZ,000') and a brief "
+        f"justification (max 50 words) for a property with these characteristics:\n\n"
+        f"Address/Postcode: {address}\n"
+        f"Property Type: {prop_type}\n"
+        f"Number of Bedrooms: {beds}\n"
+        f"Condition: {condition}\n\n"
+        f"Provide the estimate first, then the reasoning. Example: '£450,000. Justification: Recent sales of similar terraced homes in SW1A 1AA support this, accounting for good condition.'"
+    )
+
+    try:
+        # Debug print: Check if API Key is detected before the call
+        print(f"DEBUG_HS_AI: Attempting Gemini call for Valuation. API Key set: {bool(os.getenv('GEMINI_API_KEY'))}")
+        response = model.generate_content(prompt)
+        ai_response = response.text
+
+        # Attempt to parse the AI's response into estimate and reasoning
+        # This is a basic split; more robust parsing might be needed for production
+        parts = ai_response.split('Justification:', 1)
+        estimate = parts[0].strip()
+        reasoning = parts[1].strip() if len(parts) > 1 else "No specific reasoning provided by AI."
+
+        return jsonify({
+            "estimate": estimate,
+            "reasoning": reasoning
+        })
+    except Exception as e:
+        print(f"Error generating AI valuation: {e}") # This print goes to stderr/stdout
+        return jsonify({"error": "Could not generate AI valuation. Please try again."}), 500
+
 
 if __name__ == '__main__':
     # When running on Cloud Run, Google sets the PORT environment variable.
